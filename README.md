@@ -2,7 +2,7 @@
 
 An independent Android build of [RustDesk](https://github.com/rustdesk/rustdesk), focused on Korean text input when controlling a Windows computer. This is not an official RustDesk release.
 
-Based on upstream commit `001b0e96173cea4e49f9f7a67bea95a177dd1de3`. Upstream license notices and source files are retained; see [LICENSE](LICENSE).
+Based on upstream commit `001b0e96173cea4e49f9f7a67bea95a177dd1de3`. Upstream license notices and source files are retained; see [LICENCE](LICENCE).
 
 ## Android input changes
 
