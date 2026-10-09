@@ -6,12 +6,13 @@ Based on upstream commit `001b0e96173cea4e49f9f7a67bea95a177dd1de3`. Upstream li
 
 ## Android input changes
 
-- Send committed Hangul syllables instead of dropping same-length IME updates.
+- Show the current composing Hangul syllable immediately, without waiting for another keystroke.
 - Observe composition-only changes so the last syllable can be committed without an extra keystroke.
 - Treat user-entered digits as content, separately from the hidden input padding.
 - Compare whole grapheme clusters so emoji and combining characters are not split.
 - Finish composition and reset the local buffer before pointer interaction with the remote view or when the keyboard loses focus.
 - Send corrective Backspace events without inheriting toolbar modifiers.
+- Remember an explicit insecure-connection choice for the selected remote ID and server settings. Server/key changes show the warning again; the connection security indicator remains accurate.
 
 These changes apply to the Android controller → Windows path. Other input paths retain the upstream implementation.
 
@@ -29,7 +30,6 @@ flutter test test/android_soft_keyboard_input_test.dart
 
 ## Known limits
 
-- The current composing syllable appears remotely after the IME commits it. Pending composition is not streamed as remote preedit.
 - The remote protocol does not expose editor contents or caret state. Focus changes made on the remote computer without client interaction cannot be synchronized automatically.
 - Editors differ in how Backspace handles complex emoji. Grapheme edit tests do not establish identical behavior in every Windows editor.
 - Automated tests and emulator startup checks do not replace testing Samsung Keyboard and Gboard against a live Windows session.

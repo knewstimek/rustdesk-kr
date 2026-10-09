@@ -7,11 +7,11 @@ class AndroidKeyboardEdit {
   const AndroidKeyboardEdit({this.backspaces = 0, this.insert = ''});
 }
 
-/// Tracks only text that has been committed to the remote input target.
+/// Tracks text shown remotely, including the current composing syllable.
 class AndroidSoftKeyboardInput {
   final String padding;
   int _paddingLength = 0;
-  String _committed = '';
+  String _sentText = '';
   String _pending = '';
 
   AndroidSoftKeyboardInput({required this.padding}) {
@@ -20,7 +20,7 @@ class AndroidSoftKeyboardInput {
 
   void reset() {
     _paddingLength = padding.length;
-    _committed = '';
+    _sentText = '';
     _pending = '';
   }
 
@@ -37,24 +37,13 @@ class AndroidSoftKeyboardInput {
       } else {
         // A paste can replace the hidden field, but must not erase remote text.
         _paddingLength = 0;
-        _committed = '';
+        _sentText = '';
       }
     }
 
     _pending = text.substring(_paddingLength);
-    final hasComposition = composingStart >= _paddingLength &&
-        composingEnd > composingStart &&
-        composingEnd <= text.length;
-    var committed = _pending;
-    if (hasComposition) {
-      committed = text.substring(_paddingLength, composingStart);
-      // Recomposition of existing text is deferred until the IME commits it.
-      if (!committed.startsWith(_committed)) {
-        return const AndroidKeyboardEdit();
-      }
-    }
-
-    final edit = _diff(committed);
+    // Render composing text too; waiting for commit hides the final syllable.
+    final edit = _diff(_pending);
     return AndroidKeyboardEdit(
         backspaces: edit.backspaces + paddingBackspaces, insert: edit.insert);
   }
@@ -62,7 +51,7 @@ class AndroidSoftKeyboardInput {
   AndroidKeyboardEdit finish() => _diff(_pending);
 
   AndroidKeyboardEdit _diff(String next) {
-    final oldCharacters = _committed.characters.toList(growable: false);
+    final oldCharacters = _sentText.characters.toList(growable: false);
     final newCharacters = next.characters.toList(growable: false);
     var common = 0;
     while (common < oldCharacters.length &&
@@ -70,7 +59,7 @@ class AndroidSoftKeyboardInput {
         oldCharacters[common] == newCharacters[common]) {
       ++common;
     }
-    _committed = next;
+    _sentText = next;
     return AndroidKeyboardEdit(
         backspaces: oldCharacters.length - common,
         insert: newCharacters.skip(common).join());

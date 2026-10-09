@@ -11,7 +11,7 @@ String apply(String remote, AndroidKeyboardEdit edit) {
 }
 
 void main() {
-  test('Hangul composition commits complete syllables, including end-only events',
+  test('Hangul composition is visible immediately without an extra keystroke',
       () {
     final input = AndroidSoftKeyboardInput(padding: padding);
     var remote = '';
@@ -21,10 +21,10 @@ void main() {
       final edit = input.update(padding + values[i],
           composingStart: padding.length + starts[i],
           composingEnd: padding.length + values[i].length);
-      expect(edit.backspaces, 0);
       remote = apply(remote, edit);
+      expect(remote, values[i], reason: 'The current syllable must be visible immediately');
     }
-    expect(remote, '가나');
+    expect(remote, '가나다');
     remote = apply(remote, input.update(padding + '가나다'));
     expect(remote, '가나다');
     expect(input.finish().insert, '');
@@ -86,11 +86,11 @@ void main() {
     input.update(padding + '간');
     final pending = input.update(padding + '가',
         composingStart: padding.length, composingEnd: padding.length + 1);
-    expect(pending.backspaces, 0);
-    expect(pending.insert, '');
+    expect(pending.backspaces, 1);
+    expect(pending.insert, '가');
     final committed = input.finish();
-    expect(committed.backspaces, 1);
-    expect(committed.insert, '가');
+    expect(committed.backspaces, 0);
+    expect(committed.insert, '');
 
     input.reset();
     input.update(padding + '가나다');

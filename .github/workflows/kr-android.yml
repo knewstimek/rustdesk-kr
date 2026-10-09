@@ -16,7 +16,7 @@ env:
   VCPKG_COMMIT_ID: 9e593bb18ea69cc5095e012465dcd675a822ed0d
   NDK_VERSION: r28c
   VCPKG_BINARY_SOURCES: clear;x-gha,readwrite
-  VERSION: 1.5.0-kr.1
+  VERSION: 1.5.0-kr.2
 jobs:
   input-tests:
     runs-on: ubuntu-24.04
@@ -32,7 +32,7 @@ jobs:
       run: flutter pub get
     - name: Test Android input regressions
       working-directory: flutter
-      run: flutter test test/android_soft_keyboard_input_test.dart
+      run: flutter test test/android_soft_keyboard_input_test.dart test/insecure_connection_choice_test.dart
   generate-bridge:
     runs-on: ${{ matrix.job.os }}
     strategy:
@@ -305,7 +305,7 @@ jobs:
             cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/arm64-v8a/librustdesk.so
             # build flutter
             pushd flutter
-            flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-arm64 --split-per-abi
+            flutter build apk "--${{ matrix.job.reltype }}" --build-name "${{ env.VERSION }}" --build-number 69 --target-platform android-arm64 --split-per-abi
             mv build/app/outputs/flutter-apk/app-arm64-v8a-${{ matrix.job.reltype }}.apk ../rustdesk-kr-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.apk
           ;;
           armv7-linux-androideabi)
@@ -314,7 +314,7 @@ jobs:
             cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/armeabi-v7a/librustdesk.so
             # build flutter
             pushd flutter
-            flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-arm --split-per-abi
+            flutter build apk "--${{ matrix.job.reltype }}" --build-name "${{ env.VERSION }}" --build-number 69 --target-platform android-arm --split-per-abi
             mv build/app/outputs/flutter-apk/app-armeabi-v7a-${{ matrix.job.reltype }}.apk ../rustdesk-kr-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.apk
           ;;
           x86_64-linux-android)
@@ -323,7 +323,7 @@ jobs:
             cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/x86_64/librustdesk.so
             # build flutter
             pushd flutter
-            flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-x64 --split-per-abi
+            flutter build apk "--${{ matrix.job.reltype }}" --build-name "${{ env.VERSION }}" --build-number 69 --target-platform android-x64 --split-per-abi
             mv build/app/outputs/flutter-apk/app-x86_64-${{ matrix.job.reltype }}.apk ../rustdesk-kr-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.apk
           ;;
           i686-linux-android)
@@ -332,7 +332,7 @@ jobs:
             cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/x86/librustdesk.so
             # build flutter
             pushd flutter
-            flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-x86 --split-per-abi
+            flutter build apk "--${{ matrix.job.reltype }}" --build-name "${{ env.VERSION }}" --build-number 69 --target-platform android-x86 --split-per-abi
             mv build/app/outputs/flutter-apk/app-x86-${{ matrix.job.reltype }}.apk ../rustdesk-kr-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.apk
           ;;
         esac
@@ -371,7 +371,7 @@ jobs:
     - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
     - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
-        name: rustdesk-kr-1.5.0-kr.1-x86_64.apk
+        name: rustdesk-kr-1.5.0-kr.2-x86_64.apk
         path: apk
     - name: Enable KVM access
       run: |-

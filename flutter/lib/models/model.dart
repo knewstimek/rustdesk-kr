@@ -1079,6 +1079,7 @@ class FfiModel with ChangeNotifier {
         };
       }
       msgBox(sessionId, type, title, text, link, dialogManager,
+          peerId: parent.target?.id,
           hasCancel: hasCancel,
           reconnect: hasRetry ? reconnect : null,
           reconnectTimeout: hasRetry ? _reconnects : null,

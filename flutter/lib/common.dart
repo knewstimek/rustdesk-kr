@@ -39,6 +39,7 @@ import 'desktop/pages/file_manager_page.dart' as desktop_file_manager;
 import 'desktop/pages/view_camera_page.dart' as desktop_view_camera;
 import 'package:flutter_hbb/desktop/widgets/remote_toolbar.dart';
 import 'models/model.dart';
+import 'models/insecure_connection_choice.dart';
 import 'models/platform_model.dart';
 
 import 'package:flutter_hbb/native/win32.dart'
@@ -1178,12 +1179,22 @@ Widget createDialogContent(String text) {
 void msgBox(SessionID sessionId, String type, String title, String text,
     String link, OverlayDialogManager dialogManager,
     {bool? hasCancel,
+    String? peerId,
     ReconnectHandle? reconnect,
     int? reconnectTimeout,
     VoidCallback? onSubmit,
     int? submitTimeout}) {
   dialogManager.dismissAll();
   if (type.contains('insecure-connection')) {
+    final canRemember = isAndroid && peerId != null && peerId.isNotEmpty;
+    final consentScope = canRemember
+        ? insecureConnectionConsentScope(
+            peerId: peerId!,
+            idServer: bind.mainGetOptionSync(key: 'custom-rendezvous-server'),
+            relayServer: bind.mainGetOptionSync(key: 'relay-server'),
+            publicKey: bind.mainGetOptionSync(key: 'key'))
+        : '';
+    var rememberChoice = false;
     Future<void> closeSession() async {
       await bind.sessionSetCommon(
         sessionId: sessionId,
@@ -1195,6 +1206,10 @@ void msgBox(SessionID sessionId, String type, String title, String text,
     }
 
     void continueSession() {
+      if (canRemember && rememberChoice) {
+        bind.mainSetPeerFlutterOptionSync(
+            id: peerId!, k: insecureConnectionConsentOption, v: consentScope);
+      }
       unawaited(
         bind.sessionSetCommon(
           sessionId: sessionId,
@@ -1205,10 +1220,37 @@ void msgBox(SessionID sessionId, String type, String title, String text,
       dialogManager.dismissAll();
     }
 
+    if (canRemember &&
+        skipRememberedInsecureConnectionWarning(
+            isAndroid: isAndroid,
+            peerId: peerId!,
+            savedScope: bind.mainGetPeerFlutterOptionSync(
+                id: peerId!, k: insecureConnectionConsentOption),
+            currentScope: consentScope)) {
+      continueSession();
+      return;
+    }
+
     dialogManager.show(
       (setState, close, context) => CustomAlertDialog(
         title: null,
-        content: SelectionArea(child: msgboxContent(type, title, text)),
+        content: canRemember
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SelectionArea(child: msgboxContent(type, title, text)),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: Text(translate("Don't show again")),
+                    subtitle: Text('${translate("Remote ID")}: $peerId'),
+                    value: rememberChoice,
+                    onChanged: (value) =>
+                        setState(() => rememberChoice = value == true),
+                  ),
+                ],
+              )
+            : SelectionArea(child: msgboxContent(type, title, text)),
         actions: [
           dialogButton(
             'Continue',
