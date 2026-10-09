@@ -1,0 +1,112 @@
+name: RustDesk KR Flutter Update
+'on':
+  workflow_dispatch: {}
+  push:
+    branches:
+    - main
+    paths:
+    - flutter/**
+    - .github/workflows/kr-flutter-update.yml
+    - .github/scripts/prepare-flutter-update.py
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: kr-flutter-update-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build-flutter:
+    name: Flutter APK ${{ matrix.arch }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - arch: aarch64
+          abi: arm64-v8a
+          platform: android-arm64
+        - arch: x86_64
+          abi: x86_64
+          platform: android-x64
+    env:
+      JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+      KR_ABI: ${{ matrix.abi }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      with:
+        submodules: recursive
+        fetch-depth: 0
+    - name: Verify unchanged native sources and reuse passed test result
+      run: python3 .github/scripts/prepare-flutter-update.py
+    - name: Restore unchanged bridge files
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        name: bridge-artifact
+        path: .
+        run-id: '37982893432'
+        github-token: ${{ github.token }}
+    - name: Install Flutter
+      uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+      with:
+        channel: stable
+        flutter-version: 3.24.5
+        cache: true
+    - name: Patch Flutter
+      run: |-
+        cd "$(dirname "$(dirname "$(which flutter)")")"
+        git apply "${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff"
+    - name: Install Rust metadata toolchain
+      uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+      with:
+        toolchain: '1.75'
+    - name: Build updated Flutter APK
+      run: |-
+        sed -i 's/org.gradle.jvmargs=-Xmx1024M/org.gradle.jvmargs=-Xmx2g/g' flutter/android/gradle.properties
+        sed -i 's/signingConfigs.release/signingConfigs.debug/g' flutter/android/app/build.gradle
+        cd flutter
+        flutter build apk --release --build-name 1.5.0-kr.2 --build-number 69 --target-platform "${{ matrix.platform }}" --split-per-abi
+    - name: Setup sign tool version variable
+      run: |-
+        BUILD_TOOL_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | sort -V | tail -n 1)
+        echo "ANDROID_SIGN_TOOL_VERSION=$BUILD_TOOL_VERSION" >> "$GITHUB_ENV"
+    - uses: r0adkll/sign-android-release@349ebdef58775b1e0d8099458af0816dc79b6407
+      name: Sign app APK
+      id: sign-rustdesk
+      with:
+        releaseDirectory: flutter/build/app/outputs/flutter-apk
+        signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
+        alias: ${{ secrets.ANDROID_ALIAS }}
+        keyStorePassword: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+        keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      env:
+        BUILD_TOOLS_VERSION: ${{ env.ANDROID_SIGN_TOOL_VERSION }}
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: rustdesk-kr-1.5.0-kr.2-${{ matrix.arch }}.apk
+        path: ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
+  emulator-smoke:
+    needs:
+    - build-flutter
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        name: rustdesk-kr-1.5.0-kr.2-x86_64.apk
+        path: apk
+    - name: Enable KVM access
+      run: |-
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+    - uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+      with:
+        api-level: 35
+        arch: x86_64
+        target: google_apis
+        disable-animations: true
+        script: bash .github/scripts/kr-apk-smoke.sh "$(find apk -name '*.apk' -print -quit)"

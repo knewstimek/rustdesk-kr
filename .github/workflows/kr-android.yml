@@ -4,6 +4,15 @@ name: RustDesk KR Android
   push:
     branches:
     - main
+    paths:
+    - src/**
+    - libs/**
+    - .cargo/**
+    - Cargo.toml
+    - Cargo.lock
+    - build.rs
+    - vcpkg.json
+    - .gitmodules
 permissions:
   contents: read
 concurrency:
