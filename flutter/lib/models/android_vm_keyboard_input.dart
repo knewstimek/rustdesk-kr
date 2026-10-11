@@ -189,6 +189,39 @@ List<AndroidVmKey>? _asciiKeys(String character) {
   ];
 }
 
+enum AndroidVmImeKey { type1, type2, type3, dedicated }
+
+extension AndroidVmImeKeyLabel on AndroidVmImeKey {
+  String get label => const ['101-1', '101-2', '101-3', '103/106'][index];
+  String get shortcut =>
+      const ['Right Alt', 'Right Ctrl', 'Shift+Space', '한/영'][index];
+}
+
+List<AndroidVmKey> androidVmImeToggle(AndroidVmImeKey choice) {
+  if (choice == AndroidVmImeKey.type3) {
+    return const [
+      AndroidVmKey(0xe1, true),
+      AndroidVmKey(0x2c, true),
+      AndroidVmKey(0x2c, false),
+      AndroidVmKey(0xe1, false),
+    ];
+  }
+  final hid = choice == AndroidVmImeKey.type1
+      ? 0xe6
+      : choice == AndroidVmImeKey.type2
+      ? 0xe4
+      : 0x90;
+  return [AndroidVmKey(hid, true), AndroidVmKey(hid, false)];
+}
+
+String? androidVmKeyboardPacket(List<AndroidVmKey> keys) {
+  if (keys.any((key) => key.text.isNotEmpty)) return null;
+  return 'vm_keys:' +
+      String.fromCharCodes(
+        keys.map((key) => key.usbHid | (key.down ? 0x100 : 0)),
+      );
+}
+
 List<AndroidVmKey> androidVmKeyboardEdit(AndroidKeyboardEdit edit) {
   final keys = <AndroidVmKey>[];
   for (var i = 0; i < edit.backspaces; ++i) {
@@ -200,12 +233,12 @@ List<AndroidVmKey> androidVmKeyboardEdit(AndroidKeyboardEdit edit) {
       for (final key in hangul.split('')) {
         keys.addAll(_asciiKeys(key)!);
       }
-      // Commit the syllable before grapheme-based corrections: 101-key Korean IME.
+      // Space commits Korean composition; remove only that added space.
       keys.addAll(const [
-        AndroidVmKey(0xe6, true),
-        AndroidVmKey(0xe6, false),
-        AndroidVmKey(0xe6, true),
-        AndroidVmKey(0xe6, false),
+        AndroidVmKey(0x2c, true),
+        AndroidVmKey(0x2c, false),
+        AndroidVmKey(0x2a, true),
+        AndroidVmKey(0x2a, false),
       ]);
     } else {
       keys.addAll(_asciiKeys(character) ?? [AndroidVmKey.text(character)]);

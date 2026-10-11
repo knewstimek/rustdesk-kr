@@ -25,6 +25,7 @@ import '../../models/model.dart';
 import '../../models/platform_model.dart';
 import '../../utils/image.dart';
 import '../widgets/android_soft_keyboard_backspace.dart';
+import '../widgets/android_vm_ime_controls.dart';
 import '../widgets/dialog.dart';
 import '../widgets/custom_scale_widget.dart';
 
@@ -68,6 +69,8 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   String _value = '';
   final _androidSoftKeyboard = AndroidSoftKeyboardInput(padding: initText);
   bool _androidVmKeyboard = false;
+  AndroidVmImeKey _androidVmImeKey = AndroidVmImeKey.type1;
+  Future<void> _androidVmKeyDispatch = Future<void>.value();
   Orientation? _currentOrientation;
   final _uniqueKey = UniqueKey();
   Timer? _iosKeyboardWorkaroundTimer;
@@ -413,7 +416,14 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   }
 
   void _sendAndroidVmKeyboardEdit(AndroidKeyboardEdit edit) {
-    for (final key in androidVmKeyboardEdit(edit)) {
+    final keys = androidVmKeyboardEdit(edit);
+    if (keys.isEmpty) return;
+    final packet = androidVmKeyboardPacket(keys);
+    if (packet != null) {
+      _sendAndroidVmKeyPacket(packet);
+      return;
+    }
+    for (final key in keys) {
       if (key.text.isNotEmpty) {
         bind.sessionInputString(sessionId: sessionId, value: key.text);
       } else {
@@ -425,6 +435,27 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
             downOrUp: key.down);
       }
     }
+  }
+
+  void _sendAndroidVmKeyPacket(String packet) {
+    final targetSessionId = sessionId;
+    _androidVmKeyDispatch = _androidVmKeyDispatch.then((_) {
+      if (!mounted || !_androidVmKeyboard) return;
+      return bind.sessionHandleFlutterKeyEvent(
+          sessionId: targetSessionId,
+          character: packet,
+          usbHid: -1,
+          lockModes: 0,
+          downOrUp: true);
+    }).catchError((Object error) {
+      debugPrint('VM keyboard input failed: $error');
+    });
+  }
+
+  void _toggleAndroidVmIme() {
+    _finishAndroidSoftKeyboardInput();
+    final packet = androidVmKeyboardPacket(androidVmImeToggle(_androidVmImeKey));
+    if (packet != null) _sendAndroidVmKeyPacket(packet);
   }
 
   Future<void> _toggleAndroidVmKeyboard() async {
@@ -786,6 +817,10 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
             ),
             KeyHelpTools(
                 vmKeyboard: _androidVmKeyboard,
+                vmImeKey: _androidVmImeKey,
+                onVmImeToggle: _toggleAndroidVmIme,
+                onVmImeSelected: (choice) =>
+                    setState(() => _androidVmImeKey = choice),
                 onVmKeyboardToggle: _useAndroidCommittedInput &&
                         bind.sessionIsKeyboardModeSupported(
                             sessionId: sessionId, mode: kKeyMapMode)
@@ -1041,6 +1076,9 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
 
 class KeyHelpTools extends StatefulWidget {
   final bool vmKeyboard;
+  final AndroidVmImeKey vmImeKey;
+  final VoidCallback? onVmImeToggle;
+  final ValueChanged<AndroidVmImeKey>? onVmImeSelected;
   final VoidCallback? onVmKeyboardToggle;
   final bool keyboardIsVisible;
   final bool showGestureHelp;
@@ -1050,6 +1088,9 @@ class KeyHelpTools extends StatefulWidget {
 
   KeyHelpTools(
       {this.vmKeyboard = false,
+      this.vmImeKey = AndroidVmImeKey.type1,
+      this.onVmImeToggle,
+      this.onVmImeSelected,
       this.onVmKeyboardToggle,
       required this.keyboardIsVisible,
       required this.showGestureHelp});
@@ -1137,6 +1178,14 @@ class _KeyHelpToolsState extends State<KeyHelpTools> {
     final keys = <Widget>[
       if (widget.onVmKeyboardToggle != null)
         wrap('VM', widget.onVmKeyboardToggle!, active: widget.vmKeyboard),
+      if (widget.vmKeyboard &&
+          widget.onVmImeToggle != null &&
+          widget.onVmImeSelected != null)
+        AndroidVmImeControls(
+          selection: widget.vmImeKey,
+          onToggle: widget.onVmImeToggle!,
+          onSelected: widget.onVmImeSelected!,
+        ),
       wrap(
           ' Fn ',
           () => setState(

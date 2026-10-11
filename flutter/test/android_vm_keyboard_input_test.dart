@@ -4,6 +4,43 @@ import '../lib/models/android_soft_keyboard_input.dart';
 import '../lib/models/android_vm_keyboard_input.dart';
 
 void main() {
+  test('VM packets preserve strokes and manual Korean keyboard choices', () {
+    expect(
+      androidVmKeyboardPacket(
+        androidVmKeyboardEdit(const AndroidKeyboardEdit(insert: '12')),
+      )?.substring(8).codeUnits,
+      [0x11e, 0x1e, 0x11f, 0x1f],
+    );
+    expect(
+      AndroidVmImeKey.values.map(
+        (choice) =>
+            androidVmImeToggle(choice)
+                .map((key) => [key.usbHid, key.down])
+                .toList(),
+      ),
+      [
+        [
+          [0xe6, true],
+          [0xe6, false],
+        ],
+        [
+          [0xe4, true],
+          [0xe4, false],
+        ],
+        [
+          [0xe1, true],
+          [0x2c, true],
+          [0x2c, false],
+          [0xe1, false],
+        ],
+        [
+          [0x90, true],
+          [0x90, false],
+        ],
+      ],
+    );
+  });
+
   test(
     'VM input sends digit and letter HID keys instead of Unicode scan values',
     () {
@@ -47,18 +84,19 @@ void main() {
       expect(keys.where((key) => key.down).map((key) => key.usbHid), [
         0x15,
         0x0e,
-        0xe6,
-        0xe6,
+        0x2c,
+        0x2a,
         0x16,
         0x0e,
-        0xe6,
-        0xe6,
+        0x2c,
+        0x2a,
         0x08,
         0x0e,
-        0xe6,
-        0xe6,
+        0x2c,
+        0x2a,
       ]);
       expect(keys.where((key) => key.text.isNotEmpty), isEmpty);
+      expect(keys.where((key) => key.usbHid == 0xe6), isEmpty);
       final input = AndroidSoftKeyboardInput(padding: '1111');
       input.update('1111ㄱ');
       final replacement = androidVmKeyboardEdit(input.update('1111가'));

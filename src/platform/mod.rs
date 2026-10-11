@@ -5,6 +5,9 @@ pub use macos::*;
 #[cfg(windows)]
 pub use windows::*;
 
+#[cfg(target_os = "android")]
+pub(crate) mod vm_keyboard;
+
 #[cfg(windows)]
 pub mod windows;
 

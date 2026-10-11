@@ -614,6 +614,10 @@ pub fn session_handle_flutter_key_event(
     down_or_up: bool,
 ) {
     if let Some(session) = sessions::get_session_by_session_id(&session_id) {
+        #[cfg(target_os = "android")]
+        if crate::platform::vm_keyboard::handle(&session, &character, usb_hid, lock_modes) {
+            return;
+        }
         let keyboard_mode = session.get_keyboard_mode();
         session.handle_flutter_key_event(
             &keyboard_mode,
