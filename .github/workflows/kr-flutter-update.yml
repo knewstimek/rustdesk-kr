@@ -28,6 +28,32 @@ jobs:
     - name: Resolve Flutter packages
       working-directory: flutter
       run: flutter pub get
+    - name: Reproduce Backspace regression without the local shortcut
+      working-directory: flutter
+      run: |
+        python3 - <<'PY'
+        from pathlib import Path
+        import subprocess
+        import tempfile
+
+        target = Path("lib/mobile/widgets/android_soft_keyboard_backspace.dart")
+        original = target.read_text()
+        try:
+            target.write_text("import 'package:flutter/widgets.dart';\nWidget withAndroidSoftKeyboardBackspace(Widget child) => child;\n")
+            with tempfile.TemporaryFile(mode="w+") as log:
+                result = subprocess.run(
+                    ["flutter", "test", "test/android_soft_keyboard_backspace_test.dart", "--reporter", "expanded"],
+                    stdout=log, stderr=subprocess.STDOUT)
+                log.seek(0)
+                output = log.read()
+            if result.returncode == 0 or not all(
+                expected in output for expected in ["Expected: 'abc12'", "Actual: 'abc123'", "Expected: '가나'", "Actual: '가나다'"]
+            ):
+                raise RuntimeError("Previous Backspace behavior did not reproduce the expected deletion failures")
+            print("PASS: English and Hangul Backspace taps fail without the local shortcut")
+        finally:
+            target.write_text(original)
+        PY
     - name: Test Android input regressions
       working-directory: flutter
       run: flutter test test/android_soft_keyboard_input_test.dart test/android_soft_keyboard_backspace_test.dart test/insecure_connection_choice_test.dart
@@ -77,7 +103,12 @@ jobs:
     - name: Patch Flutter
       run: |-
         cd "$(dirname "$(dirname "$(which flutter)")")"
-        git apply "${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff"
+        PATCH="${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff"
+        if git apply --reverse --check "$PATCH"; then
+          echo "Flutter patch already applied"
+        else
+          git apply "$PATCH"
+        fi
     - name: Install Rust metadata toolchain
       uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
       with:
