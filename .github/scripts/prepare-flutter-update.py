@@ -7,8 +7,8 @@ import tempfile
 import zipfile
 
 native_commit = "de5e42bff7f9a67ba4212d24b25eb7ca7323ceee"
-tested_commit = "ee592ad9f63f27f6b5d3eabce6e2d641190fb518"
-test_run = "37991881551"
+tested_commit = os.environ["GITHUB_SHA"]
+test_run = os.environ["GITHUB_RUN_ID"]
 abi = os.environ["KR_ABI"]
 repository = os.environ["GITHUB_REPOSITORY"]
 root = Path.cwd()

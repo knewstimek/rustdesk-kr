@@ -23,6 +23,7 @@ import '../../models/android_soft_keyboard_input.dart';
 import '../../models/model.dart';
 import '../../models/platform_model.dart';
 import '../../utils/image.dart';
+import '../widgets/android_soft_keyboard_backspace.dart';
 import '../widgets/dialog.dart';
 import '../widgets/custom_scale_widget.dart';
 
@@ -443,7 +444,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
           }
           return KeyEventResult.ignored;
         },
-        child: child);
+        child: withAndroidSoftKeyboardBackspace(child));
   }
 
   // handle mobile virtual keyboard
