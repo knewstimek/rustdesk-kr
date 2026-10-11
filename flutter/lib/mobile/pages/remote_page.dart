@@ -20,6 +20,7 @@ import '../../common/widgets/dialog.dart';
 import '../../common/widgets/remote_input.dart';
 import '../../models/input_model.dart';
 import '../../models/android_soft_keyboard_input.dart';
+import '../../models/android_vm_keyboard_input.dart';
 import '../../models/model.dart';
 import '../../models/platform_model.dart';
 import '../../utils/image.dart';
@@ -66,6 +67,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   bool _showGestureHelp = false;
   String _value = '';
   final _androidSoftKeyboard = AndroidSoftKeyboardInput(padding: initText);
+  bool _androidVmKeyboard = false;
   Orientation? _currentOrientation;
   final _uniqueKey = UniqueKey();
   Timer? _iosKeyboardWorkaroundTimer;
@@ -386,6 +388,10 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
     if (!inputModel.keyboardInputAllowed ||
         !inputModel.keyboardPerm ||
         inputModel.isViewCamera) return;
+    if (_androidVmKeyboard) {
+      _sendAndroidVmKeyboardEdit(edit);
+      return;
+    }
     for (var i = 0; i < edit.backspaces; ++i) {
       // Corrective deletion must not inherit Ctrl/Alt/Shift from the toolbar.
       bind.sessionInputKey(
@@ -404,6 +410,30 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
     } else if (edit.insert.isNotEmpty) {
       bind.sessionInputString(sessionId: sessionId, value: edit.insert);
     }
+  }
+
+  void _sendAndroidVmKeyboardEdit(AndroidKeyboardEdit edit) {
+    for (final key in androidVmKeyboardEdit(edit)) {
+      if (key.text.isNotEmpty) {
+        bind.sessionInputString(sessionId: sessionId, value: key.text);
+      } else {
+        bind.sessionHandleFlutterKeyEvent(
+            sessionId: sessionId,
+            character: '',
+            usbHid: key.usbHid,
+            lockModes: 0,
+            downOrUp: key.down);
+      }
+    }
+  }
+
+  Future<void> _toggleAndroidVmKeyboard() async {
+    final enabled = !_androidVmKeyboard;
+    await bind.sessionSetKeyboardMode(
+        sessionId: sessionId, value: enabled ? kKeyMapMode : kKeyLegacyMode);
+    if (!mounted) return;
+    _finishAndroidSoftKeyboardInput();
+    setState(() => _androidVmKeyboard = enabled);
   }
 
   void _handleAndroidSoftKeyboardInput() {
@@ -436,6 +466,9 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
     if (!_useAndroidCommittedInput) return child;
     return Focus(
         onKeyEvent: (node, event) {
+          if (_androidVmKeyboard && _mobileFocusNode.hasFocus) {
+            return KeyEventResult.skipRemainingHandlers;
+          }
           if (_mobileFocusNode.hasFocus &&
               (event.logicalKey == LogicalKeyboardKey.backspace ||
                   event.logicalKey == LogicalKeyboardKey.enter)) {
@@ -752,6 +785,12 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
               child: QualityMonitor(gFFI.qualityMonitorModel),
             ),
             KeyHelpTools(
+                vmKeyboard: _androidVmKeyboard,
+                onVmKeyboardToggle: _useAndroidCommittedInput &&
+                        bind.sessionIsKeyboardModeSupported(
+                            sessionId: sessionId, mode: kKeyMapMode)
+                    ? _toggleAndroidVmKeyboard
+                    : null,
                 keyboardIsVisible: keyboardIsVisible,
                 showGestureHelp: _showGestureHelp),
             SizedBox(
@@ -1001,6 +1040,8 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
 }
 
 class KeyHelpTools extends StatefulWidget {
+  final bool vmKeyboard;
+  final VoidCallback? onVmKeyboardToggle;
   final bool keyboardIsVisible;
   final bool showGestureHelp;
 
@@ -1008,7 +1049,10 @@ class KeyHelpTools extends StatefulWidget {
   bool get requestShow => keyboardIsVisible || showGestureHelp;
 
   KeyHelpTools(
-      {required this.keyboardIsVisible, required this.showGestureHelp});
+      {this.vmKeyboard = false,
+      this.onVmKeyboardToggle,
+      required this.keyboardIsVisible,
+      required this.showGestureHelp});
 
   @override
   State<KeyHelpTools> createState() => _KeyHelpToolsState();
@@ -1091,6 +1135,8 @@ class _KeyHelpToolsState extends State<KeyHelpTools> {
       }, active: inputModel.command),
     ];
     final keys = <Widget>[
+      if (widget.onVmKeyboardToggle != null)
+        wrap('VM', widget.onVmKeyboardToggle!, active: widget.vmKeyboard),
       wrap(
           ' Fn ',
           () => setState(

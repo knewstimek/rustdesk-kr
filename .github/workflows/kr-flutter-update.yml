@@ -56,7 +56,7 @@ jobs:
         PY
     - name: Test Android input regressions
       working-directory: flutter
-      run: flutter test test/android_soft_keyboard_input_test.dart test/android_soft_keyboard_backspace_test.dart test/insecure_connection_choice_test.dart
+      run: flutter test test/android_soft_keyboard_input_test.dart test/android_soft_keyboard_backspace_test.dart test/android_vm_keyboard_input_test.dart test/insecure_connection_choice_test.dart
   build-flutter:
     needs: input-tests
     name: Flutter APK ${{ matrix.arch }}
@@ -118,7 +118,7 @@ jobs:
         sed -i 's/org.gradle.jvmargs=-Xmx1024M/org.gradle.jvmargs=-Xmx2g/g' flutter/android/gradle.properties
         sed -i 's/signingConfigs.release/signingConfigs.debug/g' flutter/android/app/build.gradle
         cd flutter
-        flutter build apk --release --build-name 1.5.0-kr.3 --build-number 70 --target-platform "${{ matrix.platform }}" --split-per-abi
+        flutter build apk --release --build-name 1.5.0-kr.4 --build-number 71 --target-platform "${{ matrix.platform }}" --split-per-abi
     - name: Setup sign tool version variable
       run: |-
         BUILD_TOOL_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | sort -V | tail -n 1)
@@ -137,7 +137,7 @@ jobs:
     - name: Upload Artifacts
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
       with:
-        name: rustdesk-kr-1.5.0-kr.3-${{ matrix.arch }}.apk
+        name: rustdesk-kr-1.5.0-kr.4-${{ matrix.arch }}.apk
         path: ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
   emulator-smoke:
     needs:
@@ -148,7 +148,7 @@ jobs:
     - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
     - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
-        name: rustdesk-kr-1.5.0-kr.3-x86_64.apk
+        name: rustdesk-kr-1.5.0-kr.4-x86_64.apk
         path: apk
     - name: Enable KVM access
       run: |-
