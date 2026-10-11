@@ -32,16 +32,7 @@ pub fn handle(
     lock_modes: i32,
 ) -> bool {
     match dispatch(character, usb_hid, |key, down| {
-        if key == 0x90 {
-            // LANG1 is not mapped by the pinned HID library; send the Korean scan code.
-            let mut event = base::message_proto::KeyEvent::new();
-            event.mode = base::message_proto::KeyboardMode::Map.into();
-            event.down = down;
-            event.set_chr(0xf2);
-            session.send_key_event(&event);
-        } else {
-            session.handle_flutter_key_event("map", "", key, lock_modes, down);
-        }
+        session.handle_flutter_key_event("map", "", key, lock_modes, down);
     }) {
         Ok(handled) => handled,
         Err(error) => {
