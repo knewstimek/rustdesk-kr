@@ -1,0 +1,25 @@
+id: kr.release.watch
+revision: 1
+summary: Watch source-bound Android CI at five-minute intervals using an asynchronous run handle
+use_when:
+  - waiting for the release source build to complete
+tags: [rustdesk, kr, android, release, ci]
+execution:
+  kind: cli
+  executable_ref: python
+  cwd: .
+  argv_template: [tools/kr_release.py, watch, --profile, "{profile}"]
+  trusted_for_run: true
+  timeout_sec: 7200
+  artifact_mode: capture
+  preflight:
+    - {id: python.version, kind: executable, ref: python, requirement: required, argv: [--version]}
+    - {id: gh.version, kind: executable, ref: gh, requirement: required, argv: [--version]}
+    - {id: git.repository, kind: git, requirement: required}
+arguments:
+  profile:
+    type: string
+    default: .local/release-profile.json
+    description: Explicitly Git-ignored profile inside the workspace .local directory
+inputs: [tools/kr_release.py]
+cache_policy: disabled

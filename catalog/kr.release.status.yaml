@@ -1,0 +1,25 @@
+id: kr.release.status
+revision: 1
+summary: Inspect the source-bound Android CI run without exposing the local profile
+use_when:
+  - Android release operations after a source commit has been pushed
+tags: [rustdesk, kr, android, release]
+execution:
+  kind: cli
+  executable_ref: python
+  cwd: .
+  argv_template: [tools/kr_release.py, status, --profile, "{profile}"]
+  trusted_for_run: true
+  timeout_sec: 60
+  artifact_mode: capture
+  preflight:
+    - {id: python.version, kind: executable, ref: python, requirement: required, argv: [--version]}
+    - {id: gh.version, kind: executable, ref: gh, requirement: required, argv: [--version]}
+    - {id: git.repository, kind: git, requirement: required}
+arguments:
+  profile:
+    type: string
+    default: .local/release-profile.json
+    description: Explicitly Git-ignored profile inside the workspace .local directory
+inputs: [tools/kr_release.py]
+cache_policy: disabled

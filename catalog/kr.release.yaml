@@ -1,0 +1,29 @@
+id: kr.release
+revision: 1
+summary: Prepare a source-bound release plan or publish when explicitly requested
+use_when:
+  - Android release operations after a source commit has been pushed
+tags: [rustdesk, kr, android, release]
+execution:
+  kind: cli
+  executable_ref: python
+  cwd: .
+  argv_template: [tools/kr_release.py, release, --profile, "{profile}", --publish, "{publish}"]
+  trusted_for_run: true
+  timeout_sec: 300
+  artifact_mode: capture
+  preflight:
+    - {id: python.version, kind: executable, ref: python, requirement: required, argv: [--version]}
+    - {id: gh.version, kind: executable, ref: gh, requirement: required, argv: [--version]}
+    - {id: git.repository, kind: git, requirement: required}
+arguments:
+  profile:
+    type: string
+    default: .local/release-profile.json
+    description: Explicitly Git-ignored profile inside the workspace .local directory
+  publish:
+    type: boolean
+    default: false
+    description: Publish the verified prerelease; false prepares a reviewable plan
+inputs: [tools/kr_release.py]
+cache_policy: disabled
