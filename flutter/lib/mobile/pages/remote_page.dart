@@ -439,9 +439,9 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
 
   void _sendAndroidVmKeyPacket(String packet) {
     final targetSessionId = sessionId;
-    _androidVmKeyDispatch = _androidVmKeyDispatch.then((_) {
+    _androidVmKeyDispatch = _androidVmKeyDispatch.then<void>((_) async {
       if (!mounted || !_androidVmKeyboard) return;
-      return bind.sessionHandleFlutterKeyEvent(
+      await bind.sessionHandleFlutterKeyEvent(
           sessionId: targetSessionId,
           character: packet,
           usbHid: -1,
