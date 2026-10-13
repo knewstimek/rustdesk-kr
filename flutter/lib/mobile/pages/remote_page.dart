@@ -20,6 +20,7 @@ import '../../common/widgets/dialog.dart';
 import '../../common/widgets/remote_input.dart';
 import '../../models/input_model.dart';
 import '../../models/android_soft_keyboard_input.dart';
+import '../../models/android_soft_keyboard_dispatch.dart';
 import '../../models/android_vm_keyboard_input.dart';
 import '../../models/model.dart';
 import '../../models/platform_model.dart';
@@ -68,6 +69,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   bool _showGestureHelp = false;
   String _value = '';
   final _androidSoftKeyboard = AndroidSoftKeyboardInput(padding: initText);
+  final _androidSoftKeyboardDispatch = AndroidSoftKeyboardDispatch();
   bool _androidVmKeyboard = false;
   AndroidVmImeKey _androidVmImeKey = AndroidVmImeKey.type1;
   Future<void> _androidVmKeyDispatch = Future<void>.value();
@@ -395,24 +397,43 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
       _sendAndroidVmKeyboardEdit(edit);
       return;
     }
-    for (var i = 0; i < edit.backspaces; ++i) {
-      // Corrective deletion must not inherit Ctrl/Alt/Shift from the toolbar.
-      bind.sessionInputKey(
-          sessionId: sessionId,
-          name: 'VK_BACK',
-          down: false,
-          press: true,
-          alt: false,
-          ctrl: false,
-          shift: false,
-          command: false);
-    }
-    if (edit.insert.length == 1 &&
-        (edit.insert == '\n' || edit.insert == ' ')) {
-      inputChar(edit.insert);
-    } else if (edit.insert.isNotEmpty) {
-      bind.sessionInputString(sessionId: sessionId, value: edit.insert);
-    }
+    final targetSessionId = sessionId;
+    final alt = inputModel.alt;
+    final ctrl = inputModel.ctrl;
+    final shift = inputModel.shift;
+    final command = inputModel.command;
+    _androidSoftKeyboardDispatch.send(edit,
+        backspace: () async {
+          if (!mounted) return;
+          // Corrective deletion must not inherit toolbar modifiers.
+          await bind.sessionInputKey(
+              sessionId: targetSessionId,
+              name: 'VK_BACK',
+              down: false,
+              press: true,
+              alt: false,
+              ctrl: false,
+              shift: false,
+              command: false);
+        },
+        insert: (text) async {
+          if (!mounted) return;
+          if (text == '\n' || text == ' ') {
+            await bind.sessionInputKey(
+                sessionId: targetSessionId,
+                name: text == '\n' ? 'VK_RETURN' : 'VK_SPACE',
+                down: false,
+                press: true,
+                alt: alt,
+                ctrl: ctrl,
+                shift: shift,
+                command: command);
+          } else {
+            await bind.sessionInputString(
+                sessionId: targetSessionId, value: text);
+          }
+        },
+        onError: (error) => debugPrint('Android keyboard input failed: $error'));
   }
 
   void _sendAndroidVmKeyboardEdit(AndroidKeyboardEdit edit) {

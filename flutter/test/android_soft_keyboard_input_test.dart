@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:characters/characters.dart';
+import '../lib/models/android_soft_keyboard_dispatch.dart';
 import '../lib/models/android_soft_keyboard_input.dart';
 
 const padding = '11111111';
@@ -11,6 +12,27 @@ String apply(String remote, AndroidKeyboardEdit edit) {
 }
 
 void main() {
+  test('Rapid Hangul edits preserve the final text across delayed bridge calls',
+      () async {
+    final input = AndroidSoftKeyboardInput(padding: padding);
+    final dispatch = AndroidSoftKeyboardDispatch();
+    var remote = '';
+    final sent = <Future<void>>[];
+    for (final value in ['ㅎ', '하', '한', '하느', '하늘', '하늘 ', '하늘 \n']) {
+      sent.add(dispatch.send(input.update(padding + value),
+          backspace: () async {
+            await Future<void>.delayed(Duration.zero);
+            remote = apply(remote, const AndroidKeyboardEdit(backspaces: 1));
+          },
+          insert: (text) async {
+            remote = apply(remote, AndroidKeyboardEdit(insert: text));
+          },
+          onError: (error) => fail('Input failed: $error')));
+    }
+    await Future.wait(sent);
+    expect(remote, '하늘 \n');
+  });
+
   test('Hangul composition is visible immediately without an extra keystroke',
       () {
     final input = AndroidSoftKeyboardInput(padding: padding);
